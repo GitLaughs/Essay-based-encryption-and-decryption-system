@@ -20,11 +20,13 @@ namespace WinFormsApp
         private ToolStripMenuItem decryptMenuItem;
         private ToolStripMenuItem mouseMenuItem;
         private ToolStripMenuItem penMenuItem;
+        private ToolStripMenuItem clearScreenMenuItem;
         private Bitmap _bitmap;
         private Aes _aes;
         private RSA _rsa;
         private bool _isPenMode;
         private bool _isEncrypted;
+        private int _dragCount = 0;
 
         public Form1()
         {
@@ -46,28 +48,35 @@ namespace WinFormsApp
             _lineColor = Color.Black;
             _lineStyle = DashStyle.Solid;
             InitializeMenuStrip();
+            ShowMouseModePrompt();
         }
 
         private void InitializeMenuStrip()
         {
             menuStrip666 = new MenuStrip();
-            encryptMenuItem = new ToolStripMenuItem("¼ÓÃÜ");
-            decryptMenuItem = new ToolStripMenuItem("½âÃÜ");
+            encryptMenuItem = new ToolStripMenuItem("åŠ å¯†");
+            decryptMenuItem = new ToolStripMenuItem("è§£å¯†");
             encryptMenuItem.Click += EncryptMenuItem_Click;
             decryptMenuItem.Click += DecryptMenuItem_Click;
             menuStrip666.Items.Add(encryptMenuItem);
             menuStrip666.Items.Add(decryptMenuItem);
 
-            mouseMenuItem = new ToolStripMenuItem("Êó±ê");
-            penMenuItem = new ToolStripMenuItem("»­±Ê");
+            mouseMenuItem = new ToolStripMenuItem("é¼ æ ‡");
+            penMenuItem = new ToolStripMenuItem("ç”»ç¬”");
             mouseMenuItem.Click += MouseMenuItem_Click;
             penMenuItem.Click += PenMenuItem_Click;
             menuStrip666.Items.Add(mouseMenuItem);
             menuStrip666.Items.Add(penMenuItem);
+
+            clearScreenMenuItem = new ToolStripMenuItem("æ¸…å±");
+            clearScreenMenuItem.Click += ClearScreenMenuItem_Click;
+            menuStrip666.Items.Add(clearScreenMenuItem);
+
             this.Controls.Add(menuStrip666);
-            ToolStripMenuItem drawMenuItem = new ToolStripMenuItem("»æÍ¼");
-            ToolStripMenuItem lineColorMenuItem = new ToolStripMenuItem("ÏßÌõÑÕÉ«");
-            ToolStripMenuItem lineStyleMenuItem = new ToolStripMenuItem("ÏßÌõÀàĞÍ");
+
+            ToolStripMenuItem drawMenuItem = new ToolStripMenuItem("ç»˜å›¾");
+            ToolStripMenuItem lineColorMenuItem = new ToolStripMenuItem("çº¿æ¡é¢œè‰²");
+            ToolStripMenuItem lineStyleMenuItem = new ToolStripMenuItem("çº¿æ¡ç±»å‹");
 
             foreach (KnownColor color in Enum.GetValues(typeof(KnownColor)))
             {
@@ -90,6 +99,37 @@ namespace WinFormsApp
             menuStrip666.Items.Add(drawMenuItem);
         }
 
+        private void ShowMouseModePrompt()
+        {
+            var result = MessageBox.Show("æ˜¯å¦åˆ‡æ¢åˆ°ç”»ç¬”å·¥å…·ï¼Ÿ", "æç¤º", MessageBoxButtons.YesNo);
+            if (result == DialogResult.Yes)
+            {
+                _isPenMode = true;
+            }
+            else
+            {
+                MessageBox.Show("å¦‚éœ€è¦ç»˜ç”»ï¼Œè¯·ä½¿ç”¨ç”»ç¬”å·¥å…·");
+            }
+        }
+
+        private void ClearScreenMenuItem_Click(object sender, EventArgs e)
+        {
+            var result = MessageBox.Show("ç¡®å®šæ¸…å±å—ï¼Ÿ", "ç¡®è®¤æ¸…å±", MessageBoxButtons.YesNo);
+            if (result == DialogResult.Yes)
+            {
+                ClearCanvas();
+            }
+        }
+
+        private void ClearCanvas()
+        {
+            using (Graphics g = Graphics.FromImage(_canvas))
+            {
+                g.Clear(Color.White);
+            }
+            this.Invalidate();
+        }
+
         private void MouseMenuItem_Click(object sender, EventArgs e)
         {
             _isPenMode = false;
@@ -106,27 +146,51 @@ namespace WinFormsApp
             {
                 EncryptAndSave();
                 _isEncrypted = true;
-                MessageBox.Show("¼ÓÃÜ³É¹¦£¡");
+                MessageBox.Show("åŠ å¯†æˆåŠŸï¼");
             }
             catch (Exception ex)
             {
-                MessageBox.Show("¼ÓÃÜÊ§°Ü: " + ex.Message);
+                MessageBox.Show("åŠ å¯†å¤±è´¥: " + ex.Message);
             }
         }
 
         private void DecryptMenuItem_Click(object sender, EventArgs e)
         {
+            if (!_isEncrypted)
+            {
+                MessageBox.Show("æœªè¿›è¡ŒåŠ å¯†æ“ä½œï¼Œæ— æ³•è§£å¯†ï¼");
+                return;
+            }
+
+            DialogResult result = MessageBox.Show("è§£å¯†æ“ä½œå°†æ¸…é™¤é¡µé¢ä¸Šçš„æ‰€æœ‰å›¾åƒã€‚æ˜¯å¦ç»§ç»­ï¼Ÿ", "è­¦å‘Š", MessageBoxButtons.YesNoCancel);
+
+            if (result == DialogResult.Yes)
+            {
+                EncryptAndSave();
+                MessageBox.Show("åŠ å¯†ä¿å­˜æˆåŠŸï¼è¯·ç»§ç»­é€‰æ‹©è¦è§£å¯†çš„æ–‡ä»¶");
+            }
+            else if (result == DialogResult.No)
+            {
+                MessageBox.Show("è§£å¯†æ“ä½œå·²å–æ¶ˆã€‚");
+                return;
+            }
+            else
+            {
+                MessageBox.Show("è§£å¯†æ“ä½œå·²å–æ¶ˆã€‚");
+                return;
+            }
+
             try
             {
                 if (DecryptAndLoad())
                 {
-                    Invalidate();  // Ê¹Õû¸ö´°ÌåÎŞĞ§²¢´¥·¢ÖØ»æÊÂ¼ş
-                    MessageBox.Show("½âÃÜ³É¹¦£¡");
+                    Invalidate();
+                    MessageBox.Show("è§£å¯†æˆåŠŸï¼");
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("½âÃÜÊ§°Ü: " + ex.Message);
+                MessageBox.Show("è§£å¯†å¤±è´¥: " + ex.Message);
             }
         }
 
@@ -212,51 +276,35 @@ namespace WinFormsApp
 
         private bool DecryptAndLoad()
         {
-            if (!_isEncrypted)
-            {
-                MessageBox.Show("Î´½øĞĞ¼ÓÃÜ²Ù×÷£¬ÎŞ·¨½âÃÜ£¡");
-                return false;
-            }
-
             OpenFileDialog openFileDialog = new OpenFileDialog();
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
-                byte[] encryptedAesKey, encryptedAesIV, encryptedData;
                 using (FileStream fileStream = new FileStream(openFileDialog.FileName, FileMode.Open))
                 {
-                    encryptedAesKey = new byte[_rsa.KeySize / 8];
-                    encryptedAesIV = new byte[_rsa.KeySize / 8];
-                    encryptedData = new byte[fileStream.Length - encryptedAesKey.Length - encryptedAesIV.Length];
+                    byte[] encryptedAesKey = new byte[_rsa.KeySize / 8];
+                    byte[] encryptedAesIV = new byte[_rsa.KeySize / 8];
                     fileStream.Read(encryptedAesKey, 0, encryptedAesKey.Length);
                     fileStream.Read(encryptedAesIV, 0, encryptedAesIV.Length);
+
+                    byte[] aesKey = _rsa.Decrypt(encryptedAesKey, RSAEncryptionPadding.Pkcs1);
+                    byte[] aesIV = _rsa.Decrypt(encryptedAesIV, RSAEncryptionPadding.Pkcs1);
+
+                    _aes.Key = aesKey;
+                    _aes.IV = aesIV;
+
+                    byte[] encryptedData = new byte[fileStream.Length - encryptedAesKey.Length - encryptedAesIV.Length];
                     fileStream.Read(encryptedData, 0, encryptedData.Length);
-                }
 
-                byte[] aesKey;
-                byte[] aesIV;
-                byte[] decryptedData;
-                try
-                {
-                    aesKey = _rsa.Decrypt(encryptedAesKey, RSAEncryptionPadding.Pkcs1);
-                    aesIV = _rsa.Decrypt(encryptedAesIV, RSAEncryptionPadding.Pkcs1);
+                    ICryptoTransform decryptor = _aes.CreateDecryptor();
+                    byte[] decryptedData = decryptor.TransformFinalBlock(encryptedData, 0, encryptedData.Length);
 
-                    using (MemoryStream ms = new MemoryStream(encryptedData))
+                    using (MemoryStream ms = new MemoryStream(decryptedData))
                     {
-                        ICryptoTransform decryptor = _aes.CreateDecryptor(aesKey, aesIV);
-                        decryptedData = decryptor.TransformFinalBlock(ms.ToArray(), 0, (int)ms.Length);
+                        Bitmap decryptedBitmap = new Bitmap(ms);
+                        _canvas = new Bitmap(decryptedBitmap);
                     }
+                    return true;
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("½âÃÜ¹ı³ÌÖĞ³ö´í: " + ex.Message);
-                    return false;
-                }
-
-                using (MemoryStream msBitmap = new MemoryStream(decryptedData))
-                {
-                    _canvas = new Bitmap(msBitmap);
-                }
-                return true;
             }
             return false;
         }

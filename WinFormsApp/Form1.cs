@@ -38,7 +38,7 @@ namespace WinFormsApp
             _canvas = new Bitmap(800, 600);
             _pen = new Pen(Color.Black, 2);
             _isDrawing = false;
-            _isPenMode = false;
+            _isPenMode = true;
             _isEncrypted = false;
             this.Paint += new PaintEventHandler(Form1_Paint);
             this.MouseDown += new MouseEventHandler(Form1_MouseDown);
@@ -48,7 +48,7 @@ namespace WinFormsApp
             _lineColor = Color.Black;
             _lineStyle = DashStyle.Solid;
             InitializeMenuStrip();
-            ShowMouseModePrompt();
+            //ShowMouseModePrompt();
         }
 
         private void InitializeMenuStrip()
@@ -99,18 +99,18 @@ namespace WinFormsApp
             menuStrip666.Items.Add(drawMenuItem);
         }
 
-        private void ShowMouseModePrompt()
-        {
-            var result = MessageBox.Show("是否切换到画笔工具？", "提示", MessageBoxButtons.YesNo);
-            if (result == DialogResult.Yes)
-            {
-                _isPenMode = true;
-            }
-            else
-            {
-                MessageBox.Show("如需要绘画，请使用画笔工具");
-            }
-        }
+        //private void ShowMouseModePrompt()
+        //{
+        //    var result = MessageBox.Show("是否切换到画笔工具？", "提示", MessageBoxButtons.YesNo);
+        //    if (result == DialogResult.Yes)
+        //    {
+        //        _isPenMode = true;
+        //    }
+        //    else
+        //    {
+        //        MessageBox.Show("如需要绘画，请使用画笔工具");
+        //    }
+        //}
 
         private void ClearScreenMenuItem_Click(object sender, EventArgs e)
         {
@@ -162,21 +162,28 @@ namespace WinFormsApp
                 return;
             }
 
-            DialogResult result = MessageBox.Show("解密操作将清除页面上的所有图像。是否继续？", "警告", MessageBoxButtons.YesNoCancel);
+            DialogResult result = MessageBox.Show("解密操作将清除页面上的所有图像。是否保存文件", "警告", MessageBoxButtons.YesNoCancel);
 
             if (result == DialogResult.Yes)
             {
-                EncryptAndSave();
-                MessageBox.Show("加密保存成功！请继续选择要解密的文件");
+                try
+                {
+                    EncryptAndSave();
+                    MessageBox.Show("加密保存成功！请继续选择要解密的文件");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("保存失败: " + ex.Message);
+                    return;
+                }
             }
             else if (result == DialogResult.No)
             {
-                MessageBox.Show("解密操作已取消。");
-                return;
+                // 继续进行解密
             }
-            else
+            else if (result == DialogResult.Cancel)
             {
-                MessageBox.Show("解密操作已取消。");
+                // 取消操作，直接返回
                 return;
             }
 
@@ -254,23 +261,40 @@ namespace WinFormsApp
         private void EncryptAndSave()
         {
             SaveFileDialog saveFileDialog = new SaveFileDialog();
+            bool success = false;
+
             if (saveFileDialog.ShowDialog() == DialogResult.OK)
             {
-                using (MemoryStream ms = new MemoryStream())
+                try
                 {
-                    _canvas.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                    byte[] drawingData = ms.ToArray();
-                    ICryptoTransform encryptor = _aes.CreateEncryptor();
-                    byte[] encryptedData = encryptor.TransformFinalBlock(drawingData, 0, drawingData.Length);
-                    byte[] encryptedAesKey = _rsa.Encrypt(_aes.Key, RSAEncryptionPadding.Pkcs1);
-                    byte[] encryptedAesIV = _rsa.Encrypt(_aes.IV, RSAEncryptionPadding.Pkcs1);
-                    using (FileStream fileStream = new FileStream(saveFileDialog.FileName, FileMode.Create))
+                    using (MemoryStream ms = new MemoryStream())
                     {
-                        fileStream.Write(encryptedAesKey, 0, encryptedAesKey.Length);
-                        fileStream.Write(encryptedAesIV, 0, encryptedAesIV.Length);
-                        fileStream.Write(encryptedData, 0, encryptedData.Length);
+                        _canvas.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                        byte[] drawingData = ms.ToArray();
+                        ICryptoTransform encryptor = _aes.CreateEncryptor();
+                        byte[] encryptedData = encryptor.TransformFinalBlock(drawingData, 0, drawingData.Length);
+                        byte[] encryptedAesKey = _rsa.Encrypt(_aes.Key, RSAEncryptionPadding.Pkcs1);
+                        byte[] encryptedAesIV = _rsa.Encrypt(_aes.IV, RSAEncryptionPadding.Pkcs1);
+
+                        using (FileStream fileStream = new FileStream(saveFileDialog.FileName, FileMode.Create))
+                        {
+                            fileStream.Write(encryptedAesKey, 0, encryptedAesKey.Length);
+                            fileStream.Write(encryptedAesIV, 0, encryptedAesIV.Length);
+                            fileStream.Write(encryptedData, 0, encryptedData.Length);
+                            success = true; // 如果成功写入文件，设置 success 为 true
+                        }
                     }
                 }
+                catch
+                {
+                    success = false; // 如果发生异常，设置 success 为 false
+                    throw;
+                }
+            }
+
+            if (!success)
+            {
+                throw new Exception("加密过程中出现错误或用户取消了操作。");
             }
         }
 
@@ -292,7 +316,7 @@ namespace WinFormsApp
                     _aes.Key = aesKey;
                     _aes.IV = aesIV;
 
-                    byte[] encryptedData = new byte[fileStream.Length - encryptedAesKey.Length - encryptedAesIV.Length];
+                    byte[] encryptedData = new byte[fileStream.Length - fileStream.Position];
                     fileStream.Read(encryptedData, 0, encryptedData.Length);
 
                     ICryptoTransform decryptor = _aes.CreateDecryptor();
@@ -300,12 +324,15 @@ namespace WinFormsApp
 
                     using (MemoryStream ms = new MemoryStream(decryptedData))
                     {
-                        Bitmap decryptedBitmap = new Bitmap(ms);
-                        _canvas = new Bitmap(decryptedBitmap);
+                        _canvas = new Bitmap(ms);
                     }
+
+                    this.Invalidate();
+                    _isEncrypted = false;
                     return true;
                 }
             }
+
             return false;
         }
     }

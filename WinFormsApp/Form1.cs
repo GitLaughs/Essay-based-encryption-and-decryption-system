@@ -153,8 +153,8 @@ namespace WinFormsApp
         {
             if (!_isEncrypted)  // 如果_isEncrypted标志为false，表示当前没有加密的绘图
             {
-                MessageBox.Show("未进行加密操作，无法解密！");  // 显示消息框通知用户没有加密的绘图，无法进行解密
-                return;  // 直接返回，不执行后续代码
+                //MessageBox.Show("未进行加密操作，无法解密！");  // 这里有bug ！！！！！ 显示消息框通知用户没有加密的绘图，无法进行解密
+                //return;  // 这里有bug ！！！！！ 直接返回，不执行后续代码
             }
 
             DialogResult result = MessageBox.Show("解密操作将清除页面上的所有图像。是否保存文件", "警告", MessageBoxButtons.YesNoCancel);  // 显示消息框询问用户是否保存当前的绘图

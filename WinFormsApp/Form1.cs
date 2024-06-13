@@ -27,6 +27,7 @@ namespace WinFormsApp
         private RSA _rsa;  // RSA加密对象
         private bool _isPenMode;  // 是否为画笔模式
         private bool _isEncrypted;  // 是否已加密
+        private bool _hasEncryptedBefore;
         private int _dragCount = 0;  // 拖动计数
 
         // 构造函数
@@ -141,6 +142,7 @@ namespace WinFormsApp
             {
                 EncryptAndSave();  // 尝试加密并保存绘图
                 _isEncrypted = true;  // 如果成功，将_isEncrypted标志设置为true
+                _hasEncryptedBefore = true; // 记录已经进行过加密操作
                 MessageBox.Show("加密成功！");  // 显示消息框通知用户加密成功
             }
             catch (Exception ex)
@@ -151,10 +153,10 @@ namespace WinFormsApp
 
         private void DecryptMenuItem_Click(object sender, EventArgs e)
         {
-            if (!_isEncrypted)  // 如果_isEncrypted标志为false，表示当前没有加密的绘图
+            if (!_isEncrypted && !_hasEncryptedBefore)  // 如果_isEncrypted标志为false且之前没有进行过加密操作
             {
-                //MessageBox.Show("未进行加密操作，无法解密！");  // 这里有bug ！！！！！ 显示消息框通知用户没有加密的绘图，无法进行解密
-                //return;  // 这里有bug ！！！！！ 直接返回，不执行后续代码
+                MessageBox.Show("未进行加密操作，无法解密！");  // 显示消息框通知用户没有加密的绘图，无法进行解密
+                return;  // 直接返回，不执行后续代码
             }
 
             DialogResult result = MessageBox.Show("解密操作将清除页面上的所有图像。是否保存文件", "警告", MessageBoxButtons.YesNoCancel);  // 显示消息框询问用户是否保存当前的绘图
@@ -187,6 +189,7 @@ namespace WinFormsApp
                 if (DecryptAndLoad())  // 尝试解密并加载绘图，如果成功，将解密后的绘图显示在窗体上
                 {
                     Invalidate();  // 使窗体无效，窗体在下一次重绘操作时会自动重绘解密后的绘图
+                    _isEncrypted = false;  // 将_isEncrypted标志设置为false，表示当前没有加密的绘图
                     MessageBox.Show("解密成功！");  // 显示消息框通知用户解密成功
                 }
             }
